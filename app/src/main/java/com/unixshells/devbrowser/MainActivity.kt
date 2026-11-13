@@ -131,6 +131,10 @@ class MainActivity : AppCompatActivity() {
                 urlBar.setText(tab.url)
                 setupDownloadListener(tab.webView)
                 updateTabStrip()
+                browserContainer.post { viewportController.onLayoutChanged(tab) }
+                if (isDevToolsVisible) {
+                    loadDevToolsForTab(tab)
+                }
             },
             onTabListChanged = { updateTabStrip() },
             onPageStarted = { url -> urlBar.setText(url) },
@@ -301,6 +305,9 @@ class MainActivity : AppCompatActivity() {
                 browserContainer.layoutParams = containerParams
                 devtoolsWebView.layoutParams = devParams
                 contentLayout.requestLayout()
+                tabManager.activeTab?.let { tab ->
+                    browserContainer.post { viewportController.onLayoutChanged(tab) }
+                }
             }
             true
         }
@@ -332,17 +339,35 @@ class MainActivity : AppCompatActivity() {
 
         if (dockMode == DockMode.BOTTOM) {
             contentLayout.orientation = LinearLayout.VERTICAL
-            containerParams.apply { weight = 1f; height = 0; width = ViewGroup.LayoutParams.MATCH_PARENT }
-            devtoolsParams.apply { weight = 1f; height = 0; width = ViewGroup.LayoutParams.MATCH_PARENT }
+            containerParams.apply {
+                weight = 1f
+                height = 0
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+            }
+            devtoolsParams.apply {
+                weight = 1f
+                height = 0
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+            }
             divider.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, (6 * resources.displayMetrics.density).toInt()
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                (6 * resources.displayMetrics.density).toInt()
             )
         } else {
             contentLayout.orientation = LinearLayout.HORIZONTAL
-            containerParams.apply { weight = 1f; width = 0; height = ViewGroup.LayoutParams.MATCH_PARENT }
-            devtoolsParams.apply { weight = 1f; width = 0; height = ViewGroup.LayoutParams.MATCH_PARENT }
+            containerParams.apply {
+                weight = 1f
+                width = 0
+                height = ViewGroup.LayoutParams.MATCH_PARENT
+            }
+            devtoolsParams.apply {
+                weight = 1f
+                width = 0
+                height = ViewGroup.LayoutParams.MATCH_PARENT
+            }
             divider.layoutParams = LinearLayout.LayoutParams(
-                (6 * resources.displayMetrics.density).toInt(), ViewGroup.LayoutParams.MATCH_PARENT
+                (6 * resources.displayMetrics.density).toInt(),
+                ViewGroup.LayoutParams.MATCH_PARENT
             )
         }
 
@@ -351,63 +376,44 @@ class MainActivity : AppCompatActivity() {
         divider.visibility = View.VISIBLE
         devtoolsWebView.visibility = View.VISIBLE
 
+        btnDevTools.setColorFilter(Color.parseColor("#4fc3f7"))
+        isDevToolsVisible = true
+
+        tabManager.activeTab?.let { tab ->
+            loadDevToolsForTab(tab)
+            browserContainer.post { viewportController.onLayoutChanged(tab) }
+        }
+    }
+
+    /**
+     * DevToolsもviewport操作と同じtarget resolverを使う。
+     * 「最初に見つかったpage」ではなく、現在表示中のタブへ確実に接続する。
+     */
+    private fun loadDevToolsForTab(tab: Tab) {
         val cdpPort = prefs.getInt("cdp_http_port", ServerPorts.cdpHttp(this))
         val devToolsPort = ServerPorts.devTools(this)
 
-        // Discover the browser WebView's page ID from CDP /json endpoint
-        // Both HTTP and WS go through the same port (the Unix socket handles both)
-        Thread {
-            try {
-                // Small delay to ensure the page is registered with CDP
-                Thread.sleep(500)
-
-                val conn = java.net.URL("http://127.0.0.1:$cdpPort/json").openConnection()
-                    as java.net.HttpURLConnection
-                conn.connectTimeout = 3000
-                conn.readTimeout = 3000
-                val json = conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-
-                Log.d(TAG, "CDP /json response: $json")
-
-                // Parse page entries
-                val idMatch = Regex(""""id"\s*:\s*"([^"]+)"""").findAll(json)
-                val urlMatch = Regex(""""url"\s*:\s*"([^"]+)"""").findAll(json)
-
-                val ids = idMatch.map { it.groupValues[1] }.toList()
-                val urls = urlMatch.map { it.groupValues[1] }.toList()
-
-                // Pick the page that isn't our devtools page
-                var pageId = ids.firstOrNull() ?: ""
-                for (i in ids.indices) {
-                    if (i < urls.size && !urls[i].contains("devtools_app") && !urls[i].contains(":$devToolsPort/")) {
-                        pageId = ids[i]
-                        break
-                    }
-                }
-
-                Log.d(TAG, "Discovered page ID: $pageId")
-
-                val devtoolsUrl = "http://localhost:$devToolsPort/devtools_app.html" +
-                    "?ws=127.0.0.1:$cdpPort/devtools/page/$pageId"
-
-                runOnUiThread {
-                    Log.d(TAG, "Loading DevTools: $devtoolsUrl")
-                    devtoolsWebView.loadUrl(devtoolsUrl)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to discover page ID: ${e.message}", e)
-                runOnUiThread {
-                    val devtoolsUrl = "http://localhost:$devToolsPort/devtools_app.html" +
-                        "?ws=127.0.0.1:$cdpPort"
-                    Log.d(TAG, "Loading DevTools (fallback): $devtoolsUrl")
-                    devtoolsWebView.loadUrl(devtoolsUrl)
-                }
+        viewportController.resolveTarget(tab) { pageId, error ->
+            if (!isDevToolsVisible || tab != tabManager.activeTab) {
+                return@resolveTarget
             }
-        }.start()
 
-        btnDevTools.setColorFilter(Color.parseColor("#4fc3f7"))
-        isDevToolsVisible = true
+            if (pageId == null) {
+                Log.e(TAG, "Failed to discover active DevTools target: $error")
+                Toast.makeText(
+                    this,
+                    error ?: "Could not identify the active tab for DevTools.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@resolveTarget
+            }
+
+            val devtoolsUrl = "http://localhost:$devToolsPort/devtools_app.html" +
+                "?ws=127.0.0.1:$cdpPort/devtools/page/$pageId"
+
+            Log.d(TAG, "Loading DevTools for active tab: $devtoolsUrl")
+            devtoolsWebView.loadUrl(devtoolsUrl)
+        }
     }
 
     private fun hideDevTools() {
@@ -422,6 +428,10 @@ class MainActivity : AppCompatActivity() {
 
         btnDevTools.setColorFilter(Color.parseColor("#aaaaaa"))
         isDevToolsVisible = false
+
+        tabManager.activeTab?.let { tab ->
+            browserContainer.post { viewportController.onLayoutChanged(tab) }
+        }
     }
 
     /**
