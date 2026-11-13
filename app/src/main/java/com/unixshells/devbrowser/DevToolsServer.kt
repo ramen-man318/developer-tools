@@ -16,7 +16,7 @@ import java.io.IOException
 class DevToolsServer(
     private val context: Context,
     port: Int = 9224
-) : NanoHTTPD(port) {
+) : NanoHTTPD("127.0.0.1", port) {
 
     // Constants are in the companion object at the bottom of the class
 

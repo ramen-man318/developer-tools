@@ -73,18 +73,18 @@ class SettingsActivity : AppCompatActivity() {
         // DevTools ports
         val editHttpPort = findViewById<EditText>(R.id.editCdpHttpPort)
         val editWsPort = findViewById<EditText>(R.id.editCdpWsPort)
-        editHttpPort.setText(prefs.getInt("cdp_http_port", 9222).toString())
-        editWsPort.setText(prefs.getInt("cdp_ws_port", 9223).toString())
+        editHttpPort.setText(prefs.getInt("cdp_http_port", ServerPorts.cdpHttp(this)).toString())
+        editWsPort.setText(prefs.getInt("cdp_ws_port", ServerPorts.cdpWs(this)).toString())
 
         editHttpPort.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
-                val port = editHttpPort.text.toString().toIntOrNull() ?: 9222
+                val port = editHttpPort.text.toString().toIntOrNull() ?: ServerPorts.cdpHttp(this)
                 prefs.edit().putInt("cdp_http_port", port).apply()
             }
         }
         editWsPort.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
-                val port = editWsPort.text.toString().toIntOrNull() ?: 9223
+                val port = editWsPort.text.toString().toIntOrNull() ?: ServerPorts.cdpWs(this)
                 prefs.edit().putInt("cdp_ws_port", port).apply()
             }
         }

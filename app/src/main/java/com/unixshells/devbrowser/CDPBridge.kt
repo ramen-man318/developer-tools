@@ -8,6 +8,8 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.InetAddress
+import java.net.InetSocketAddress
 import kotlin.concurrent.thread
 
 /**
@@ -52,9 +54,10 @@ class CDPBridge(
 
     private fun runProxy(port: Int) {
         try {
-            val server = ServerSocket(port)
-            if (port == httpPort) httpServer = server else wsServer = server
+            val server = ServerSocket()
             server.reuseAddress = true
+            server.bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), port))
+            if (port == httpPort) httpServer = server else wsServer = server
             Log.d(TAG, "Proxy listening on port $port")
 
             while (running) {

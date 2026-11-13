@@ -15,4 +15,7 @@ key.properties
 fastlane/play-store-credentials.json
 fastlane/report.xml
 fastlane/README.md
+.env
+backend/.env
+frontend/.env
 

@@ -14,4 +14,12 @@
     <string name="developer_tools">Developer Tools</string>
     <string name="dock_bottom">Dock to Bottom</string>
     <string name="dock_right">Dock to Right</string>
+    <string name="viewport_width">Viewport width (CSS px)</string>
+    <string name="viewport_width_hint">Width in CSS pixels (1–10000000)</string>
+    <string name="viewport_apply">Apply</string>
+    <string name="viewport_reset">Reset</string>
+    <string name="viewport_cancel">Cancel</string>
+    <string name="viewport_invalid">Enter a whole number from 1 to 10000000.</string>
+    <string name="viewport_success">Viewport width applied.</string>
+    <string name="viewport_reset_success">Viewport width reset.</string>
 </resources>

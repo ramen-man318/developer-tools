@@ -28,6 +28,14 @@ Two WebViews: one is your browser, the other runs the real Chrome DevTools front
 
 Requires JDK 17 and Android SDK (API 35).
 
+The debug build uses `com.unixshells.devbrowser.debug`, so it can be installed alongside the official app. GitHub Actions uploads the debug APK as the `developer-tools-debug-apk` artifact.
+
+### Viewport width
+
+Open the browser menu and select **Viewport width (CSS px)**. Enter a whole number and choose **Apply**; **Reset** clears the override. The setting applies to the current tab while its CDP connection is active. JavaScript must be enabled to identify the tab.
+
+This fork permits cleartext HTTP, including non-local addresses. HTTP traffic is not encrypted; use HTTPS for sensitive data.
+
 ## License
 
 MIT. See [NOTICE](NOTICE) for third-party licenses (Chromium DevTools, NanoHTTPD, AndroidX).

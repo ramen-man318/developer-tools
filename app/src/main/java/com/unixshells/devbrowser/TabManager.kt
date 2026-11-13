@@ -24,7 +24,8 @@ class TabManager(
     private val onTabListChanged: () -> Unit,
     private val onPageStarted: (String) -> Unit,
     private val onPageFinished: (String) -> Unit,
-    private val onTitleChanged: (String) -> Unit
+    private val onTitleChanged: (String) -> Unit,
+    private val onTabClosed: (Tab) -> Unit
 ) {
     companion object {
         private const val TAG = "TabManager"
@@ -59,6 +60,7 @@ class TabManager(
     fun closeTab(index: Int) {
         if (index < 0 || index >= tabs.size) return
         val tab = tabs.removeAt(index)
+        onTabClosed(tab)
         tab.webView.destroy()
 
         if (tabs.isEmpty()) {
